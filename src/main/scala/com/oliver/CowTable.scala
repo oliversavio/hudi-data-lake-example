@@ -17,7 +17,6 @@ case class Album(albumId: Long, title: String, tracks: Array[String], updateDate
 /**
   * This is a self contained example.
   *
-  *
   * @author oliver mascarenhas
   */
 object App {
@@ -38,42 +37,6 @@ object App {
     Album(803, "Birth of Cool", Array("Move", "Jeru", "Moon Dreams"), dateToLong("2020-02-03"))
   )
 
-  private def incrementalQuery(spark: SparkSession, basePath: String, tableName: String): Unit = {
-    spark.read
-      .format("hudi")
-      .option(DataSourceReadOptions.QUERY_TYPE_OPT_KEY, DataSourceReadOptions.QUERY_TYPE_INCREMENTAL_OPT_VAL)
-      .option(DataSourceReadOptions.BEGIN_INSTANTTIME_OPT_KEY, "20200412183510")
-      .load(s"$basePath/$tableName")
-      .show()
-
-  }
-
-
-  private def deleteQuery(spark: SparkSession, basePath: String, tableName: String): Unit = {
-    val deleteKeys = Seq(
-      Album(803, "", null, 0l),
-      Album(802, "", null, 0l)
-    )
-
-    import spark.implicits._
-
-    val df = deleteKeys.toDF()
-
-    df.write.format("hudi")
-      .option(DataSourceWriteOptions.TABLE_TYPE_OPT_KEY, DataSourceWriteOptions.COW_TABLE_TYPE_OPT_VAL)
-      .option(DataSourceWriteOptions.RECORDKEY_FIELD_OPT_KEY, "albumId")
-      .option(HoodieWriteConfig.TABLE_NAME, tableName)
-      .option(DataSourceWriteOptions.OPERATION_OPT_KEY, DataSourceWriteOptions.DELETE_OPERATION_OPT_VAL)
-      .mode(SaveMode.Append) // Only Append Mode is supported for Delete.
-      .save(s"$basePath/$tableName/")
-
-    spark.read.format("hudi").load(s"$basePath/$tableName/*").show()
-  }
-
-  private def clearDirectory(): Unit = {
-    val directory = new Directory(new File(basePath))
-    directory.deleteRecursively()
-  }
 
   def main(args: Array[String]) {
 
@@ -99,6 +62,42 @@ object App {
 
     deleteQuery(spark, basePath, tableName)
 
+  }
+
+  private def incrementalQuery(spark: SparkSession, basePath: String, tableName: String): Unit = {
+    spark.read
+      .format("hudi")
+      .option(DataSourceReadOptions.QUERY_TYPE_OPT_KEY, DataSourceReadOptions.QUERY_TYPE_INCREMENTAL_OPT_VAL)
+      .option(DataSourceReadOptions.BEGIN_INSTANTTIME_OPT_KEY, "20200412183510")
+      .load(s"$basePath/$tableName")
+      .show()
+
+  }
+
+  private def deleteQuery(spark: SparkSession, basePath: String, tableName: String): Unit = {
+    val deleteKeys = Seq(
+      Album(803, "", null, 0l),
+      Album(802, "", null, 0l)
+    )
+
+    import spark.implicits._
+
+    val df = deleteKeys.toDF()
+
+    df.write.format("hudi")
+      .option(DataSourceWriteOptions.TABLE_TYPE_OPT_KEY, DataSourceWriteOptions.COW_TABLE_TYPE_OPT_VAL)
+      .option(DataSourceWriteOptions.RECORDKEY_FIELD_OPT_KEY, "albumId")
+      .option(HoodieWriteConfig.TABLE_NAME, tableName)
+      .option(DataSourceWriteOptions.OPERATION_OPT_KEY, DataSourceWriteOptions.DELETE_OPERATION_OPT_VAL)
+      .mode(SaveMode.Append) // Only Append Mode is supported for Delete.
+      .save(s"$basePath/$tableName/")
+
+    spark.read.format("hudi").load(s"$basePath/$tableName/*").show()
+  }
+
+  private def clearDirectory(): Unit = {
+    val directory = new Directory(new File(basePath))
+    directory.deleteRecursively()
   }
 
   private def snapshotQuery(spark: SparkSession, tableName: String): Unit = {
